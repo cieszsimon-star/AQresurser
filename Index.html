@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="UTF-8">
+<title>AQ tillgängliga understöd</title>
+
+<style>
+body { font-family: Arial; padding: 20px; }
+button {
+  display: block;
+  width: 100%;
+  margin: 6px 0;
+  padding: 10px;
+  font-size: 15px;
+}
+.available { background: #2ecc71; color: white; }
+.cooldown { background: #e74c3c; color: white; }
+.timer { font-size: 13px; margin-bottom: 10px; }
+</style>
+</head>
+
+<body>
+
+<h1>AQ tillgängliga understöd</h1>
+<div id="content"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged }
+from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+/* 🔧 FIREBASE CONFIG */
+const firebaseConfig = {
+  apiKey: "AIzaSyCYnaILVldS539dZlkt6Fc0WBmRGSu_TFk",
+  authDomain: "http://aq-underst.firebaseapp.com",
+  databaseURL: "https://aq-underst-default-rtdb.firebaseio.com",
+  projectId: "aq-underst"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+const auth = getAuth(app);
+const provider = new GoogleAuthProvider();
+
+let isOwner = false;
+signInWithPopup(auth, provider);
+
+onAuthStateChanged(auth, user => {
+  if (user && user.email === "Ciesz.simon@gmail.com") {
+    isOwner = true;
+  }
+  buildUI();
+});
+
+/* 📋 STRUKTUR + COOLDOWNS (MINUTER) */
+const sections = [
+  {
+    title: "direkt från start",
+    options: [
+      { name: "kalla in 1 stridspar", cd: 15 },
+      { name: "8,5cm GRK Salva", cd: 30 }
+    ]
+  },
+  {
+    title: "capture 1 military base",
+    options: [
+      { name: "en grupp av 8 soldater", cd: 30 },
+      { name: "två salvor 8,5cm GRK", cd: 30 }
+    ]
+  },
+  {
+    title: "capture 3 military bases",
+    options: [
+      { name: "155m Salva", cd: 45 },
+      { name: "understöd av stridsfordon", cd: 90 }
+    ]
+  },
+  {
+    title: "capture airbase",
+    options: [
+      { name: "helikopter strafe run", cd: 45 },
+      { name: "laserguided bomb", cd: 90 }
+    ]
+  },
+  {
+    title: "capture resource",
+    options: [
+      { name: "ammunition drop", cd: 30 }
+    ]
+  }
+];
+
+function buildUI() {
+  const c = document.getElementById("content");
+
+  sections.forEach((sec, si) => {
+    const h = document.createElement("h2");
+    h.innerText = sec.title;
+    c.appendChild(h);
+
+    sec.options.forEach((opt, oi) => {
+      const id = `s${si}_o${oi}`;
+
+      const btn = document.createElement("button");
+      btn.innerText = opt.name;
+      btn.disabled = !isOwner;
+
+      const timer = document.createElement("div");
+      timer.className = "timer";
+
+      btn.onclick = () => {
+        const until = Date.now() + opt.cd * 60000;
+        set(ref(db, "cooldowns/" + id), until);
+      };
+
+      onValue(ref(db, "cooldowns/" + id), snap => {
+        startTimer(btn, timer, snap.val());
+      });
+
+      c.appendChild(btn);
+      c.appendChild(timer);
+    });
+  });
+}
+
+function startTimer(btn, timer, until) {
+  setInterval(() => {
+    if (!until || until <= Date.now()) {
+      btn.disabled = !isOwner;
+      btn.className = "available";
+      timer.innerText = "Tillgänglig";
+    } else {
+      const min = Math.ceil((until - Date.now()) / 60000);
+      btn.disabled = true;
+      btn.className = "cooldown";
+      timer.innerText = min + " min kvar";
+    }
+  }, 1000);
+}
+</script>
+
+</body>
+</html>
